@@ -60,7 +60,7 @@ for _ in range(8):
 add(ts, "sshd", f"Accepted password for alice from 203.0.113.77 port {random.randint(40000, 60000)} ssh2")
 
 # Attack 3: a valid login from an IP the user has never used.
-add(start + timedelta(hours=9, minutes=5), "sshd", f"Accepted password for bob from 192.0.2.200 port 51515 ssh2")
+add(start + timedelta(hours=9, minutes=5), "sshd", "Accepted password for bob from 192.0.2.200 port 51515 ssh2")
 
 for _, line in sorted(lines):
     print(line)
