@@ -155,7 +155,7 @@ Each alert has at least the following fields. The names are fixed because the AP
 | `severity` | `low` \| `medium` \| `high` | See each rule |
 | `ip` | `str` | Source IP |
 | `user` | `str \| None` | Account involved, if the rule is about one account |
-| `details` | `dict[str, int \| str]` | Rule-specific facts, e.g. `{"failures": 5}` |
+| `failures` | `int \| None` | Failed attempts in the window (brute-force rules only). The API returns it as `details: {"failures": 5}` |
 
 Like `LoginEvent`, `Alert` should be immutable.
 
@@ -175,13 +175,13 @@ Default parameters: `N = 5` failures, window `W = 5 minutes`. They have to be co
 #### Rule `brute_force`: T1110.001 Password Guessing, severity `medium`
 
 - On each **failed** event from IP `x` at time `t`, count the failures from `x` with timestamps in the closed interval `[t − W, t]`.
-- If the count is **≥ N**, emit an alert with `ip = x`, `user = None`, `details = {"failures": count}`.
+- If the count is **≥ N**, emit an alert with `ip = x`, `user = None`, `failures = count`.
 - **Cooldown:** after alerting on `x` at time `t₀`, don't alert on `x` again for failures before `t₀ + W`. A 30-attempt burst produces **one** alert, not 26.
 - Failures for valid and invalid users both count.
 
 #### Rule `brute_force_success`: T1110.001 Password Guessing, severity `high`
 
-- On each **successful** event from IP `x` for user `u` at time `t`: if `x` has **≥ N** failures in `[t − W, t]`, emit an alert with `ip = x`, `user = u`, `details = {"failures": count}`.
+- On each **successful** event from IP `x` for user `u` at time `t`: if `x` has **≥ N** failures in `[t − W, t]`, emit an alert with `ip = x`, `user = u`, `failures = count`.
 - This is the alert a human should see first, because the guessing worked.
 
 > 🧭 **Your call:** should this rule share failure history with `brute_force` (one structure, two readers) or keep its own? Sharing is less memory and code, but it couples the two. Pick one and defend it.
@@ -191,7 +191,7 @@ Default parameters: `N = 5` failures, window `W = 5 minutes`. They have to be co
 - Track, per user, the set of IPs with at least one **successful** login.
 - On a successful login by `u` from `x`:
   - If `u` has no known IPs, this is the **baseline**: record `x` and **don't** alert.
-  - Otherwise, if `x` isn't in `u`'s set, emit an alert with `ip = x`, `user = u`, `details = {}`, then add `x` to the set. Each new (user, IP) pair alerts once.
+  - Otherwise, if `x` isn't in `u`'s set, emit an alert with `ip = x`, `user = u`, then add `x` to the set. Each new (user, IP) pair alerts once.
 - Failed logins never add an IP.
 
 > 🧭 **Your call: the baseline.** "The first login is trusted" is the simplest rule that gives the expected output, but it has a real hole: an attacker whose first-ever login is the malicious one never gets flagged. Alternatives are a learning period (no alerts for the first X hours) or a `known_ips` file loaded at startup. Whatever you choose, write the weakness in DEVLOG. This is a great interview question, and you want to have answered it already.
@@ -205,7 +205,7 @@ f"{a.timestamp:%Y-%m-%d %H:%M:%S}  {SEVERITY:<6}  {a.rule:<19}  {a.technique:<9}
 ```
 
 - `SEVERITY` is uppercase.
-- ` user=…` appears only when `user` is not `None`. ` failures=…` appears only when `details` has it.
+- ` user=…` appears only when `user` is not `None`. ` failures=…` appears only when `failures` is not `None`.
 - The summary line: `{k} alerts ({h} high, {m} medium, {l} low)`.
 - Also add `--window SECONDS` and `--threshold N`, which override the defaults.
 
