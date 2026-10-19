@@ -51,6 +51,7 @@ def test_single_digit_day_is_space_padded():
 def test_non_login_lines_are_skipped():
     assert parse_line("Oct 15 14:00:01 web01 CRON[100]: pam_unix(cron:session): session opened", YEAR) is None
     assert parse_line("Oct 15 14:00:02 web01 sshd[2231]: Connection closed by 203.0.113.5 port 52144", YEAR) is None
+    assert parse_line("Oct 15 14:00:02 web01 sshd[2231]: Invalid user admin from 203.0.113.5 port 52144", YEAR) is None
     assert parse_line("", YEAR) is None
     assert parse_line("garbage", YEAR) is None
 
@@ -63,3 +64,12 @@ def test_parse_lines_keeps_only_logins():
     ]
     events = list(parse_lines(lines, YEAR))
     assert [e.success for e in events] == [False, True]
+
+
+def test_parse_lines_ipv6():
+    lines = [
+        "Oct 15 14:03:02 web01 sshd[2240]: Accepted password for alice from 2001:db8::1 port 50022 ssh2",
+    ]
+    events = list(parse_lines(lines, YEAR))
+    assert [e.success for e in events] == [True]
+    assert events[0].ip == "2001:db8::1"
